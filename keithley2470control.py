@@ -98,6 +98,33 @@ class Keithley2470Control:
             print(f"Query: {command}")
         return self.instrument.query(command)
 
+
+
+    def initialize_instrument_settings(self, 
+                                       current_limit=10e-6, 
+                                       current_range= 10e-6,
+                                       auto_range=False, 
+                                       NPLC=1,
+                                       averaging_state=True,
+                                       averaging_count=100
+                                       ):
+        
+        self.instrument.write(":SOURce:FUNCtion VOLTage")
+        self.instrument.write(":SENSe:FUNCtion 'CURRent'") # must have the single quotes
+        self.instrument.write(f":SOURce:VOLTage:ilimit {str(current_limit)}")
+        self.instrument.write(f":SENSe:CURRent:NPLC {str(NPLC)}")
+
+        if auto_range:
+            self.instrument.write(":CURRent:RANGe:AUTO ON")  # Set current range to auto
+        else:
+            self.instrument.write(":CURRent:RANGe:AUTO OFF")
+            self.instrument.write(f":CURRent:RANGe {str(current_range)}")
+
+        if averaging_state: # Turn on averaging
+            self.instrument.write(":SENSe:CURRent:AVERage ON")
+            self.instrument.write(f":SENSe:CURRent:AVERage:COUNt {str(averaging_count)}")
+
+
     def number_of_readings(self, bufferName="defbuffer1"):
         return int(self.query(":TRAC:ACT? '{}'".format(bufferName)))
 
@@ -131,7 +158,6 @@ class Keithley2470Control:
 
         return self.buffer_table
     
-    #TODO: Implement the following methods
     def set_voltage(self, target_voltage:float, range=1000):
         if range=="auto":
             self.instrument.write(":source:voltage:range:auto on")
@@ -161,6 +187,7 @@ class Keithley2470Control:
         pass
 
 if __name__ == "__main__":
+    pass
     # %% INSTANTIATE THE Keithley2470Control CLASS
     KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
     keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
@@ -225,20 +252,20 @@ if __name__ == "__main__":
     keithley.write(":OUTP OFF")
 
     # %%
-    columns = ["Relative time", "Source", "Source Unit", "Reading", "Reading Unit"]
-    df = keithley.get_buffer_dataframe(columns=columns)
-    # convert the columns to numeric
-    df["Relative time"] = pd.to_numeric(df["Relative time"])
-    df["Source"] = abs(pd.to_numeric(df["Source"]))
-    df["Reading"] = abs(pd.to_numeric(df["Reading"]))
-    print(df.info())
-    print(df)
+    # columns = ["Relative time", "Source", "Source Unit", "Reading", "Reading Unit"]
+    # df = keithley.get_buffer_dataframe(columns=columns)
+    # # convert the columns to numeric
+    # df["Relative time"] = pd.to_numeric(df["Relative time"])
+    # df["Source"] = abs(pd.to_numeric(df["Source"]))
+    # df["Reading"] = abs(pd.to_numeric(df["Reading"]))
+    # print(df.info())
+    # print(df)
 
-    df.plot(x="Source", y="Reading", kind="line", marker="o")
-    plt.xlabel("Voltage (V)")
-    plt.ylabel("Current (A)")
-    plt.title("IV Curve")
-    plt.show()
+    # df.plot(x="Source", y="Reading", kind="line", marker="o")
+    # plt.xlabel("Voltage (V)")
+    # plt.ylabel("Current (A)")
+    # plt.title("IV Curve")
+    # plt.show()
 
     # %% Close the instrument
     # keithley.disconnect()
