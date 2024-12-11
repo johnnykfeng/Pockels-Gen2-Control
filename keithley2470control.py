@@ -18,6 +18,7 @@ rm = pyvisa.ResourceManager()
 print(rm.list_resources())
 
 class Keithley2470Control:
+    print("Keithley2470Control class initialized version 0.0.1")
     # class_verbose = False
     def __init__(self, 
                  address, 
@@ -177,11 +178,17 @@ class Keithley2470Control:
 
     def ramp_voltage(self, target_voltage, step_size, step_delay):
         if self.running_voltage > target_voltage:
-            step_size = -step_size
-        while self.running_voltage != target_voltage:
-            self.running_voltage += step_size
-            self.set_voltage(self.running_voltage)
-            time.sleep(step_delay)
+            while self.running_voltage > target_voltage:
+                self.running_voltage -= step_size
+                self.set_voltage(self.running_voltage)
+                time.sleep(step_delay)
+        elif self.running_voltage < target_voltage:
+            while self.running_voltage < target_voltage:
+                self.running_voltage += step_size
+                self.set_voltage(self.running_voltage)
+                time.sleep(step_delay)
+        else:
+            print("Target voltage reached")
 
     def set_current_range(self, current_range):
         pass
