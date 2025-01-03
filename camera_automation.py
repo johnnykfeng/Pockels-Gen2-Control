@@ -1,8 +1,12 @@
 import pyautogui
 import time
-import os
-import toml
-from datetime import datetime
+# import os
+# import toml
+# from datetime import datetime
+
+image_path_position = (-1210, 100)
+image_name_position = (-1420, 770)
+
 
 pyautogui.FAILSAFE = False
 
@@ -24,18 +28,16 @@ class CameraGuiAutomation:
         self.type_speed = 0.01
         self.screen_size = pyautogui.size()
         self.screen_number = 2
+        self.screen_center = (self.screen_size[0]//2, self.screen_size[1]//2)
 
     def save_image_png(self, image_name, image_path=None):
-        pyautogui.moveTo(-1830, 33, duration=self.mouse_speed)
-        pyautogui.moveTo(-self.screen_size[0]//2, self.screen_size[1]//2, duration=self.mouse_speed)
-        pyautogui.click(button='left')
+        pyautogui.click(x=-self.screen_center[0], y=self.screen_center[1], button='left', duration=self.mouse_speed)
         pyautogui.press('f4')
         if image_path is not None:
-            pyautogui.moveTo(-1210, 100, duration=self.mouse_speed)
-            pyautogui.click(button='left')
+            pyautogui.click(image_path_position, button='left', duration=0.5, interval=0.2)
             pyautogui.typewrite(image_path, interval=self.type_speed)
-        pyautogui.moveTo(-1420, 770, duration=self.mouse_speed)
-        pyautogui.click(button='left')
+            pyautogui.press('enter')
+        pyautogui.click(image_name_position, button='left', duration=self.mouse_speed, clicks=2)
         pyautogui.typewrite(image_name, interval=self.type_speed)
         time.sleep(0.3)
         pyautogui.press('enter')
