@@ -1,3 +1,8 @@
+"""
+This file contains the CameraControl class, which is used to control the camera.
+SDK is provided by Xenics and manually installed in local machine.
+"""
+
 # from xenics.xeneth import *
 from xenics.xeneth import XGetFrameFlags, XCamera
 from xenics.xeneth.errors import XenethAPIException
@@ -65,13 +70,13 @@ class CameraControl:
         with open(file_path, 'wb') as f:
             f.write(data)
 
-
 if __name__=="__main__":
     url = "cam://0"
     cam = CameraControl(url)
-    # cam.start_capture()
-    # frame = cam.get_frame()
-    # cam.save_as_bin(frame, r"CAMERA_IMAGES\\test_image3.bin")
+    cam.start_capture()
+    frame = cam.get_frame()
+    cam.save_as_bin(frame, r"CAMERA_IMAGES\\test_image_capture.bin")
+    # cam.save_as_bin(frame, r"CAMERA_IMAGES\\test_image_capture.png")
     # avg_frame = cam.get_average_frames(5)
     # cam.save_as_bin(avg_frame, r"CAMERA_IMAGES\\test_image_avg.bin")
     
