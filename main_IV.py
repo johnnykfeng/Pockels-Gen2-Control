@@ -1,5 +1,5 @@
 # %% IMPORTS
-from keithley2470control import Keithley2470Control
+from Devices.keithley2470control import Keithley2470Control
 # from camera_control import CameraControl
 import numpy as np
 import pandas as pd
