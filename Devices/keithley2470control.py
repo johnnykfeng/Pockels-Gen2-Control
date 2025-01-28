@@ -13,9 +13,29 @@ import numpy as np
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
+from enum import Enum
+from typing import List
 
 rm = pyvisa.ResourceManager()
 print(rm.list_resources())
+
+class BufferElements(Enum):
+    """Enum class to define the buffer elements to be read from the Keithley 2470"""
+    DATE = "The date when the data point was measured"
+    FORMATTED = "The measured value as it appears on the front panel"
+    FRACTIONAL = "The fractional seconds for the data point when the data point was measured"
+    READING = "The measurement reading based on the [:SENSE[1]]:FUNCTION[:ON] setting; if no buffer elements are defined, this option is used"
+    RELATIVE = "The relative time when the data point was measured"
+    SECONDS = "The seconds in UTC (Coordinated Universal Time) format when the data point was measured"
+    SOURCE = "The source value; if readback is ON, then it is the readback value, otherwise it is the programmed source value"
+    SOURFORMATTED = "The source value as it appears on the display"
+    SOURSTATUS = "The status information associated with sourcing. The values returned indicate the status of conditions such as overvoltage protection, source value reading, overtemperature condition, function level limitation, four-wire sense usage, and output status"
+    SOURUNIT = "The unit of value associated with the source value"
+    STATUS = "The status information associated with the measurement"
+    TIME = "The time for the data point"
+    TSTAMP = "The timestamp for the data point"
+    UNIT = "The unit of measure associated with the measurement"# class BufferElements(Enum):
+
 
 class Keithley2470Control:
     print("Keithley2470Control class initialized version 0.0.1")
@@ -129,33 +149,39 @@ class Keithley2470Control:
     def number_of_readings(self, bufferName="defbuffer1"):
         return int(self.query(":TRAC:ACT? '{}'".format(bufferName)))
 
-    def read_buffer(self, bufferName="defbuffer1"):
+    def read_buffer(self, buffer_elements: List[BufferElements], bufferName="defbuffer1"):
         act = self.query(":TRAC:ACT? '{}'".format(bufferName))
         if act == "0":
             print("No data in buffer")
             return None
         else:
+            element_names = [element.name for element in buffer_elements]
             return self.query(
-                f":TRAC:DATA? 1, {int(act)}, '{bufferName}',REL, SOUR, SOURUNIT, READ, UNIT"
+                f":TRAC:DATA? 1, {int(act)}, '{bufferName}',{', '.join(element_names)}"
             )
 
     def get_buffer_dataframe(
         self,
-        columns=["Relative time", "Source", "Source Unit", "Reading", "Reading Unit"],
+        buffer_elements: List[BufferElements],
+        bufferName="defbuffer1"
     ):
-        n_readings = self.number_of_readings()
-        raw_data = self.read_buffer()
+
+        if not all(isinstance(element, BufferElements) for element in buffer_elements):
+            raise ValueError("All elements must be of type BufferElements")
+        element_names = [element.name for element in buffer_elements]
+        n_readings = self.number_of_readings(bufferName)
+        raw_data = self.read_buffer(buffer_elements, bufferName)
         raw_data = raw_data.split(",")
         if raw_data is None or n_readings == 0:
             return None
-        if len(raw_data) % len(columns) != 0:
+        if len(raw_data) % len(buffer_elements) != 0:
             print("Data columns do not match the number of columns")
             return None
 
         self.buffer_table = pd.DataFrame()
-        for c in range(len(columns)):
-            data_parsed = raw_data[c :: len(columns)]
-            self.buffer_table[columns[c]] = data_parsed
+        for i in range(len(buffer_elements)):
+            data_parsed = raw_data[i :: len(buffer_elements)]
+            self.buffer_table[element_names[i]] = data_parsed
 
         return self.buffer_table
     

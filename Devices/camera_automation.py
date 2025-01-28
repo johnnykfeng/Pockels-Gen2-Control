@@ -4,9 +4,9 @@ import time
 
 
 # save_path_position = (-1210, 100)
-save_path_position = (700, 100)
+save_path_position = (1200, 100)
 # file_name_position = (-1420, 770)
-file_name_position = (700, 770)
+file_name_position = (1200, 770)
 
 
 pyautogui.FAILSAFE = False

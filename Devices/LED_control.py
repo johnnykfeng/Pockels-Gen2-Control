@@ -1,21 +1,25 @@
 from loguru import logger
-import os
 import time
 from ctypes import (
-    c_uint32, c_int, c_double, c_bool,
-    create_string_buffer, byref, cdll, c_char_p
+    c_uint32,
+    c_int,
+    c_double,
+    create_string_buffer,
+    byref,
+    cdll,
 )
 
 
-class LEDController:#Loading DLL file.
-
+class LEDController: 
     def __init__(self, verbose=False):
         logger.info("Initializing LED Controller")
-        self.lib = cdll.LoadLibrary(r"C:\Program Files\Thorlabs\upSERIES\Drivers\Instr\bin\TLUP_64.dll")
+        self.lib = cdll.LoadLibrary(
+            r"C:\Program Files\Thorlabs\upSERIES\Drivers\Instr\bin\TLUP_64.dll"
+        )
 
-        #Counting upSeries devices.
+        # Counting upSeries devices.
         deviceCount = c_uint32()
-        self.lib.TLUP_findRsrc(0,byref(deviceCount))
+        self.lib.TLUP_findRsrc(0, byref(deviceCount))
         if deviceCount.value > 0:
             logger.info(f"Found {deviceCount.value} upSeries devices")
         else:
@@ -23,19 +27,24 @@ class LEDController:#Loading DLL file.
             exit()
         print()
 
-        #Reading model name and serial number of the first connected upSeries device.
+        # Reading model name and serial number of the first connected upSeries device.
         modelName = create_string_buffer(256)
         serialNumber = create_string_buffer(256)
         self.lib.TLUP_getRsrcInfo(0, 0, modelName, serialNumber, 0, 0)
         print("Connecting to this device:")
-        print("Model name: ", (modelName.value).decode(), ", Serial number: ", (serialNumber.value).decode())
+        print(
+            "Model name: ",
+            (modelName.value).decode(),
+            ", Serial number: ",
+            (serialNumber.value).decode(),
+        )
         print()
 
-        #Initializing the first connected upSeries device.
+        # Initializing the first connected upSeries device.
         upName = create_string_buffer(256)
         self.lib.TLUP_getRsrcName(0, 0, upName)
-        self.handle=c_int(0)
-        self.res=self.lib.TLUP_init(upName.value, 0, 0, byref(self.handle))
+        self.handle = c_int(0)
+        self.res = self.lib.TLUP_init(upName.value, 0, 0, byref(self.handle))
 
         self.current_setpoint = c_double()
         self.led_name = create_string_buffer(256)
@@ -43,16 +52,23 @@ class LEDController:#Loading DLL file.
         self.current_limit = c_double()
         self.forward_voltage = c_double()
         self.wavelength = c_double()
-        
+
         # Get LED info
-        self.lib.TLUP_getLedInfo(self.handle, self.led_name, self.led_serial, 
-                                byref(self.current_limit), byref(self.forward_voltage),
-                                byref(self.wavelength))
+        self.lib.TLUP_getLedInfo(
+            self.handle,
+            self.led_name,
+            self.led_serial,
+            byref(self.current_limit),
+            byref(self.forward_voltage),
+            byref(self.wavelength),
+        )
 
         self.verbose = verbose
 
-        logger.debug(f"Connected to device: {modelName.value.decode()} (SN: {serialNumber.value.decode()})")
-        
+        logger.debug(
+            f"Connected to device: {modelName.value.decode()} (SN: {serialNumber.value.decode()})"
+        )
+
         logger.info("LED Controller initialization complete")
 
     def get_current_setpoint(self):
@@ -64,7 +80,6 @@ class LEDController:#Loading DLL file.
         logger.debug(f"Current setpoint: {value:.1f} mA")
         return value
 
-    
     def set_current(self, current_ma):
         """Set LED current in mA"""
         logger.debug(f"Setting current to {current_ma} mA")
@@ -73,10 +88,12 @@ class LEDController:#Loading DLL file.
             self.current_setpoint = c_double(current_a)
             self.lib.TLUP_setLedCurrentSetpoint(self.handle, self.current_setpoint)
             # Verify current was set
-            self.lib.TLUP_getLedCurrentSetpoint(self.handle, 0, byref(self.current_setpoint))
+            self.lib.TLUP_getLedCurrentSetpoint(
+                self.handle, 0, byref(self.current_setpoint)
+            )
             if self.verbose:
-                print(f"LED current set to {self.current_setpoint.value*1000:.1f} mA")
-            logger.info(f"Current set to {self.current_setpoint.value*1000:.1f} mA")
+                print(f"LED current set to {self.current_setpoint.value * 1000:.1f} mA")
+            logger.info(f"Current set to {self.current_setpoint.value * 1000:.1f} mA")
         except Exception as e:
             logger.error(f"Error setting current: {e}")
             print(f"Error setting current: {e}")
@@ -104,11 +121,12 @@ class LEDController:#Loading DLL file.
             print(f"LED Name: {self.led_name.value.decode()}")
             print(f"Serial Number: {self.led_serial.value.decode()}")
             print(f"Wavelength: {self.wavelength.value} nm")
-            print(f"Current Limit: {self.current_limit.value*1000:.1f} mA")
+            print(f"Current Limit: {self.current_limit.value * 1000:.1f} mA")
             print(f"Forward Voltage: {self.forward_voltage.value:.1f} V")
         else:
             print("No EEPROM detected")
-        print(f"Current Setpoint: {self.current_setpoint.value*1000:.1f} mA")
+        print(f"Current Setpoint: {self.current_setpoint.value * 1000:.1f} mA")
+
 
 if __name__ == "__main__":
     led = LEDController()
@@ -120,5 +138,3 @@ if __name__ == "__main__":
         time.sleep(1)
         # led.turn_off()
         # time.sleep(1)
-
-
