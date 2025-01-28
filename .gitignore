@@ -6,3 +6,4 @@ __pycache__/
 CAMERA_IMAGES/
 TEST_DATA/
 IGNORE/
+.idea/
