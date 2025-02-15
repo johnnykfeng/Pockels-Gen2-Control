@@ -5,6 +5,7 @@ from Devices.keithley2470control import Keithley2470Control
 from utils import countdown_timer
 
 import time
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,12 +13,17 @@ import matplotlib.pyplot as plt
 rotation_mount = RotationMount("27267316")
 camera = CameraAutomation()
 # save_path = r"C:\Users\10552\Downloads\pockels_run"
-save_path = r"C:\Code\Pockels-Gen2-Control\CAMERA_IMAGES\pockels_run_2025-01-16_b"
+sensor_id = "D366359"
+date = time.strftime("%Y-%m-%d")
+version = "A"
+save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\{sensor_id}_{date}_{version}"
 led = LEDController()
 KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
 keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
 
 if __name__ == "__main__":
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     # Define the positions
     cross = 130
     parallel = 40
