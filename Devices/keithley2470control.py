@@ -47,7 +47,7 @@ class Keithley2470Control:
                  verbose=False):
         
         self.address = address
-        self.instrument = rm.open_resource(self.address)
+        self.instrument = rm.open_resource(self.address) # initialize the instrument
         self.instrument.timeout = timeout
         self.instrument.read_termination = "\n"
         self.instrument.write_termination = "\n"
@@ -147,7 +147,13 @@ class Keithley2470Control:
 
 
     def number_of_readings(self, bufferName="defbuffer1"):
-        return int(self.query(":TRAC:ACT? '{}'".format(bufferName)))
+        try:
+            n_readings = int(self.query(":TRACe:ACTual? '{}'".format(bufferName)))
+        except Exception as e:
+            print(f"Error getting number of readings: {e}")
+            return None
+        else:
+            return n_readings
 
     def read_buffer(self, buffer_elements: List[BufferElements], bufferName="defbuffer1"):
         act = self.query(":TRAC:ACT? '{}'".format(bufferName))
@@ -226,63 +232,32 @@ if __name__ == "__main__":
     keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
 
     #%%
-    keithley.ramp_voltage(-50, step_size=2, step_delay=0.5)
-
-    print(keithley.running_voltage)
-
-    keithley.write(":READ?")
-    keithley.disable_output()
-    print(keithley.output_state)
-    #%%
-    keithley.set_voltage(-40)
-    keithley.write(":READ?")
-
-    #%%
-    # print(keithley.query(":trace:actual? 'defbuffer1'"))
-
-    # raw_data = keithley.read_buffer()
-    # print(raw_data)
-
-    table = keithley.get_buffer_dataframe()
-    print(table)
-
-
-    #%%
-
     # Initialize the measurement settings
-    SOURCE = "VOLT"
-    SENSE = "CURR"
-    current_limit = 100e-6  # 100 uA
-    current_range = 0.001  # 100 uA
-    # Number of power line cycles (NPLC) to integrate the measurement
-    # Lower NPLC => faster reading rates, increased noise.
-    # Higher NPLC => lower reading noise, slower reading rates.
-    # min NPLC = 0.01, max NPLC = 10
-    NPLC = 0.1
+    keithley.initialize_instrument_settings(current_limit=100e-6, 
+                                            current_range="auto", 
+                                            NPLC=1)
 
-    keithley.write(":SOUR:FUNC VOLT")
-    keithley.write(":SENSE:FUNC CURR")
-    keithley.write(":CURR:RANGE:AUTO ON")  # Set current range to auto
-    # keithley.write(f":current:range {str(current_range)}")
-    keithley.write(f":source:voltage:ilimit {str(current_limit)}")
-    keithley.write(f":sense:current:nplc {str(NPLC)}")
 
     print("Starting the measurement")
+
+    keithley.write(":TRIGger:CONTinous")
+    keithley.write(":INITiate")
+    keithley.enable_output()
+    
     Voltages = np.arange(0, -201, -20)
     Currents = np.ones(len(Voltages))
     print(Voltages)
     for i, voltage in enumerate(Voltages):
-        keithley.write(":source:voltage {}".format(voltage))
-        keithley.write(":OUTP ON")
+        keithley.set_voltage(voltage)
         time.sleep(1)
-        reading = float(keithley.query(":READ?"))
-        Currents[i] = reading
-        # print(f"Voltage: {voltage} V")
-        # print(f"Output: {reading}")
-        # time.sleep(0.5)
         keithley.beep(300 + i * 20, 0.5)
 
     keithley.write(":OUTP OFF")
+    keithley.write(":ABORt")
+
+    # %% Close the instrument
+    keithley.disconnect()
+    print("Keithley 2470 closed")
 
     # %%
     # columns = ["Relative time", "Source", "Source Unit", "Reading", "Reading Unit"]
@@ -300,6 +275,3 @@ if __name__ == "__main__":
     # plt.title("IV Curve")
     # plt.show()
 
-    # %% Close the instrument
-    # keithley.disconnect()
-    # print("Keithley 2470 closed")
