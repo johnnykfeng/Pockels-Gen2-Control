@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 rotation_mount = RotationMount("27267316")
 camera = CameraAutomation()
 # save_path = r"C:\Users\10552\Downloads\pockels_run"
-sensor_id = "D366359"
+sensor_id = "D361091"
 date = time.strftime("%Y-%m-%d")
-version = "A"
-save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\{sensor_id}_{date}_{version}"
+trial = "A"
+save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\{sensor_id}_{date}_{trial}"
 led = LEDController()
 KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
 keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     )
 
     current_readings = []
-    voltages = np.arange(0, -1101, -100)
+    voltages = np.arange(0, -1101, -50)
     for voltage in voltages:
         keithley.ramp_voltage(voltage, step_size=10, step_delay=0.5)
         time.sleep(2)
@@ -77,15 +77,32 @@ if __name__ == "__main__":
     led.turn_off()
     keithley.disconnect()
 
+    current_readings_float = [float(reading) for reading in current_readings]
+    current_readings_float = np.array(current_readings_float)
+    print(f"{current_readings_float = }")
 
-    print(f"{current_readings = }")
-    df = pd.DataFrame({"Voltage": voltages, "Current": current_readings})
+    df = pd.DataFrame({"Voltage": voltages, "Current": current_readings_float})
     df.to_csv(f"{save_path}\pockels_current_readings.csv", index=False)
 
-    # plt.plot(voltages, current_readings)
-    # plt.xlabel("Voltage (V)")
-    # plt.ylabel("Current (A)")
-    # plt.title("Current vs Voltage")
-    # plt.savefig(f"{save_path}\pockels_current_vs_voltage.png")
-    # plt.show()
+
+    # Plot the IV curve
+    fig, ax = plt.subplots()
+    ax.plot(abs(voltages), abs(current_readings_float), '-o')
+    ax.set_xlabel("abs(Voltage) (V)")
+    ax.set_ylabel("abs(Current) (A)")
+    ax.set_title("IV Curve")
+    ax.grid(True)
+    fig.savefig(f"{save_path}\IV_plot.png")
+
+    fig2, ax2 = plt.subplots()
+    ax2.plot(abs(voltages), abs(current_readings_float), '-o')
+    ax2.set_xlabel("abs(Voltage) (V)")
+    ax2.set_ylabel("abs(Current) (A)")
+    ax2.set_title("IV Curve")
+    ax2.grid(True)
+    ax2.set_yscale('log')
+    fig2.savefig(f"{save_path}\IV_plot_log.png")
+
+    fig.show()
+    fig2.show()
 
