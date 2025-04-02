@@ -1,7 +1,3 @@
-import csv
-import os
-from time import sleep
-import numpy as np
 from pymeasure.instruments.keithley.keithley2470 import Keithley2470
 from pymeasure.adapters import VISAAdapter
 
@@ -22,22 +18,20 @@ class ItProcedure():
         self.keithley.stop_buffer()
         self.keithley.disable_buffer()
 
-    def execute(self, sensor_id, max_voltage, steps, data_points, temperature):
-
-        voltage_steps = np.linspace(0, max_voltage, steps+1)
-        voltage_steps = iter(voltage_steps)
-        next(voltage_steps)
-
+    def execute(self, voltages, current_range, nplc, data_points):
+        data = []
+        self.keithley.current_nplc = nplc
+        self.keithley.current_range = current_range
         self.keithley.beep(392, 1)
+        self.keithley.enable_source()
 
         ### Perform Ramp Captures ###
-        for voltage in voltage_steps:
+        for voltage in voltages:
             print("Setting voltage to: " + str(voltage))
 
             load_ramp_trigger_model(self.keithley, data_points)
 
             self.keithley.config_buffer(points=data_points)
-            self.keithley.current_range = 100e-6
 
             self.keithley.source_voltage = voltage
             self.keithley.start_buffer()
@@ -66,30 +60,19 @@ class ItProcedure():
                 v = float(self.keithley.read())
                 source_voltages.append(v)
 
-            data = []
             for idx, current in enumerate(currents):
                 line = {
                     'Buffer Index': idx,
                     'Voltage (V)': source_voltages[idx],
                     'Current (A)': current,
-                    'Time (s)': relative_timestamps[idx]
+                    'Relative Time (s)': relative_timestamps[idx],
+                    'Absolute Time': data_timestamps[idx]
                 }
                 data.append(line)
-
-            if voltage > -1000:
-                voltage_tag = '0' + str(int(abs(voltage)))
-            elif voltage == -1000:
-                voltage_tag = str(int(abs(voltage)))
-
-            path = 'C:\Code\Pockels-Gen2-Control\TEST_DATA\I-t Data'
-            dir_name = sensor_id
-            csv_filename = f'{temperature}C_{voltage_tag}V_ramp.csv'
-            create_directory_and_csv(path, dir_name, csv_filename, data)
 
         ### Perform Shutoff Capture ###
         load_shutoff_trigger_model(self.keithley, data_points)
         self.keithley.config_buffer(points=data_points)
-        self.keithley.current_range = 100e-6
 
         self.keithley.beep(392, 1)
         self.keithley.source_voltage = voltage
@@ -125,22 +108,17 @@ class ItProcedure():
             v = float(self.keithley.read())
             source_voltages.append(v)
 
-        data = []
         for idx, current in enumerate(currents):
             line = {
                 'Buffer Index': idx,
                 'Voltage (V)': source_voltages[idx],
                 'Current (A)': current,
-                'Time (s)': relative_timestamps[idx]
+                'Relative Time (s)': relative_timestamps[idx],
+                'Absolute Time': data_timestamps[idx]
             }
             data.append(line)
 
-        path = 'C:\Code\Pockels-Gen2-Control\TEST_DATA\I-t Data'
-        dir_name = sensor_id
-        csv_filename = f'{temperature}C_shutoff.csv'
-        create_directory_and_csv(path, dir_name, csv_filename, data)
-        
-        print("All Done :)")
+        return data
 
 
 def load_ramp_trigger_model(keithley, data_points):
@@ -158,16 +136,4 @@ def load_shutoff_trigger_model(keithley, data_points):
     keithley.write(":TRIGger:BLOCK:DELay:CONStant 5, 0")
     keithley.write(":TRIGger:BLOCK:MDIGitize 6, 'defbuffer1', 1")
     keithley.write(":TRIGger:BLOCK:BRANch:COUNter 7, " + str(data_points/2) + ", 6")
-
-def create_directory_and_csv(path, dir_name, csv_filename, data):
-    full_path = os.path.join(path, dir_name)
-    if not os.path.exists(full_path):
-        os.makedirs(full_path)
-    
-    csv_file_path = os.path.join(full_path, csv_filename)
-    
-    with open(csv_file_path, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
     
