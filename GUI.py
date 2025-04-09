@@ -3,6 +3,7 @@ import It_manual_test_script as it
 from time import sleep
 from datetime import datetime
 import os
+os.environ["KIVY_NO_CONSOLELOG"] = "1"      # Turns off annoying logging
 import csv
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -11,40 +12,56 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.logger import Logger
-import logging
 
 
-def create_directory_and_csv(path, dir_name, csv_filename, data, metadata):
-    # Create the full path for the directory where the file will be stored
-    full_path = os.path.join(path, dir_name)
-    
-    # If the directory doesn't exist, create it
-    if not os.path.exists(full_path):
-        os.makedirs(full_path)
-    
-    # Define the path for the CSV file
-    csv_file_path = os.path.join(full_path, csv_filename)
-    
-    with open(csv_file_path, mode='w', newline='') as file:
-        writer = csv.writer(file)
+# Function to save metadata and data to a CSV file
+def save_to_csv(metadata, data, directory, filename):
+    try:
+        file_path = os.path.join(directory, filename)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        # Write metadata keys and values in vertical format with '#' in front of the keys
-        for key, value in metadata.items():
-            writer.writerow([f"#{key}", value])  # Writing the key with '#' and the corresponding value in the second column
-        
-        # Add an empty row between metadata and data for better readability
-        writer.writerow([])
+        # Open the CSV file for writing
+        with open(file_path, mode='w', newline='') as file:
 
-        # Write the data to the CSV file (measurement results)
-        if data:
+            writer = csv.writer(file)
+
+            # Write metadata
+            for key, value in metadata.items():
+                writer.writerow([f"# {key}: {value}"])  # Write each metadata line
+            
+            # Write an empty row to separate metadata from data
+            writer.writerow([])
+
             writer = csv.DictWriter(file, fieldnames=data[0].keys())
             writer.writeheader()
             writer.writerows(data)
+                
+        print(f"Data and metadata have been saved to {file_path}")
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
-def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, samples):
+def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, samples, cross_angle, parallel_angle, led_current):
+
     temp_ctrl = TC720control('com6')
+
     for set_point in temperatures:
+
+        save_path = f"C:\Code\Pockels-Gen2-Control\TEST_OUTPUTS\{sensor_id}"
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        csv_filename = f'{sensor_id}_{set_point}C_{timestamp}.csv'
+        metadata = {
+            "Sensor ID": sensor_id, 
+            "Temperature": set_point, 
+            "Test Voltages": voltages,
+            "Keithley Current Range (A)": current_range,
+            "Keithley NPLC": nplc,
+            "Samples per Voltage": samples,
+            "Cross Angle": cross_angle,
+            "Parallel Angle": parallel_angle,
+            "LED Current": led_current,
+            }
 
         if 10 <= set_point < 20:
             heat_multiplier = 0.75
@@ -83,25 +100,14 @@ def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, sampl
         print(f"Set point temperature: {temp_ctrl.read_set_point()}C")
         sleep(300)
 
-        volt_ctrl = it.ItProcedure()
-        volt_ctrl.startup()
-        output_data = volt_ctrl.execute(voltages, current_range, nplc, samples)
+        experiment = it.PockelsProcedure()
+        experiment.startup(sensor_id, set_point, cross_angle, parallel_angle, led_current, save_path)
+        It_data = experiment.execute(voltages, current_range, nplc, samples, save_path, set_point, timestamp, sensor_id)
 
-        path = 'C:\Code\Pockels-Gen2-Control\TEST_DATA\I-t Data'
-        dir_name = sensor_id
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        csv_filename = f'{set_point}C_{timestamp}.csv'
-
-        metadata = {
-            "Sensor ID": sensor_id, 
-            "Temperature": set_point, 
-            "Test Voltages": voltages,
-            "Keithley Current Range (A)": current_range,
-            "Keithley NPLC": nplc,
-            "Samples per Voltage": samples
-            }
-                
-        create_directory_and_csv(path, dir_name, csv_filename, output_data, metadata)
+        save_path = os.path.join(save_path, "IT_DATA")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        save_to_csv(metadata=metadata, data=It_data, directory=save_path, filename=csv_filename)
 
         print(f'{set_point}C Measurement Complete')
 
@@ -113,24 +119,26 @@ def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, sampl
 class GUI(App):
     def build(self):
 
-        Logger.setLevel(logging.CRITICAL)
-
         # Create a BoxLayout to hold all elements
         layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
         
         # Create a ScrollView for the text inputs
         scroll_view = ScrollView(size_hint=(1, 0.8))
-        input_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=500)
+        input_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=600)
         
         # Define labels and corresponding input names
-        labels = ["Sensor ID", "Temperatures", "Voltages", "Keithley Current Range (A)", "Keithley NPLC", "Samples per Voltage"]
+        labels = ["Sensor ID", "Temperatures", "Voltages", "Keithley Current Range (A)", "Keithley NPLC", "Samples per Voltage", 
+                  "Cross Angle", "Parallel Angle", "LED Current"]
         defaults = {
             "Sensor ID": "", 
             "Temperatures": "10, 20, 30, 40, 50, 60, 70, 80, 90", 
             "Voltages": "-100, -200, -300, -400, -500, -600, -700, -800, -900, -1000",
             "Keithley Current Range (A)": "10e-6",
             "Keithley NPLC": "0.01", 
-            "Samples per Voltage": "2000"
+            "Samples per Voltage": "2000",
+            "Cross Angle": "130",
+            "Parallel Angle": "40",
+            "LED Current": "100"
         }
         self.inputs = []
         
@@ -160,6 +168,9 @@ class GUI(App):
         current_range = self.safe_float(self.inputs[3].text)
         keithley_nplc = self.safe_float(self.inputs[4].text)
         samples_per_voltage = self.safe_int(self.inputs[5].text)
+        cross_angle = self.safe_float(self.inputs[6].text)
+        parallel_angle = self.safe_float(self.inputs[7].text)
+        led_current = self.safe_float(self.inputs[8].text)
         
         print(f"Sensor ID: {sensor_id}")
         print(f"Temperatures: {temperatures}")
@@ -167,7 +178,10 @@ class GUI(App):
         print(f"Keithley Current Range (A): {current_range}")
         print(f"Keithley NPLC: {keithley_nplc}")
         print(f"Samples per Voltage: {samples_per_voltage}")
-        run_experiment(sensor_id, temperatures, voltages, current_range, keithley_nplc, samples_per_voltage)
+        print(f"Cross Angle: {cross_angle}")
+        print(f"Parallel Angle: {parallel_angle}")
+        print(f"LED Current: {led_current}")
+        run_experiment(sensor_id, temperatures, voltages, current_range, keithley_nplc, samples_per_voltage, cross_angle, parallel_angle, led_current)
 
     def parse_list_input(self, input_text):
         """Helper method to parse comma-separated input into a list."""
