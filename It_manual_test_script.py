@@ -1,14 +1,23 @@
 from pymeasure.instruments.keithley.keithley2470 import Keithley2470
 from pymeasure.adapters import VISAAdapter
+from Devices.thorlabs_rotation_mount import RotationMount
+from Devices.camera_automation import CameraAutomation
+from Devices.LED_control import LEDController
+from utils import countdown_timer
+import os
 
-class ItProcedure():
+class PockelsProcedure():
         
     def __init__(self):
         super().__init__()
         adapter = VISAAdapter("USB0::0x05E6::0x2470::04625649::INSTR")
         self.keithley = Keithley2470(adapter)
+        self.rotation_mount = RotationMount("27267316")
+        self.led = LEDController()
+        self.camera = CameraAutomation()
 
-    def startup(self):
+    def startup(self, sensor_id, temperature, cross_angle, parallel_angle, led_current, save_path):
+        # Keithley-specific startup code
         self.keithley.reset()
         self.keithley.use_rear_terminals()
         self.keithley.apply_voltage(compliance_current=105e-6)
@@ -18,7 +27,38 @@ class ItProcedure():
         self.keithley.stop_buffer()
         self.keithley.disable_buffer()
 
-    def execute(self, voltages, current_range, nplc, data_points):
+        # Rotation mount-specific startup code
+        self.rotation_mount.open_device()
+        self.rotation_mount.home_device()
+        self.rotation_mount.setup_conversion()
+        self.rotation_mount.move_to_position(parallel_angle)
+
+        # LED-specific startup code
+        self.led.set_current(led_current)
+        self.led.turn_off()
+
+        save_path = os.path.join(save_path, f"CAMERA_IMAGES")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        self.rotation_mount.move_to_position(parallel_angle)
+        self.camera.save_image_png(file_name=f"{sensor_id}_{temperature}C_calib_parallel_off.png", save_path=save_path)
+        countdown_timer(3)
+
+        self.led.turn_on()
+        self.camera.save_image_png(file_name=f"{sensor_id}_{temperature}C_calib_parallel_on.png", save_path=save_path)
+        countdown_timer(3)
+
+        self.rotation_mount.move_to_position(cross_angle)
+        self.camera.save_image_png(file_name=f"{sensor_id}_{temperature}C_calib_cross_on.png", save_path=save_path)
+        countdown_timer(3)
+
+    def execute(self, voltages, current_range, nplc, data_points, save_path, temperature, timestamp, sensor_id):
+
+        save_path = os.path.join(save_path, f"CAMERA_IMAGES")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
         data = []
         self.keithley.current_nplc = nplc
         self.keithley.current_range = current_range
@@ -34,6 +74,10 @@ class ItProcedure():
             self.keithley.config_buffer(points=data_points)
 
             self.keithley.source_voltage = voltage
+
+            self.camera.save_image_png(file_name=f"{sensor_id}_{temperature}C_{abs(voltage)}V_{timestamp}.png", save_path=save_path)
+            countdown_timer(3)
+
             self.keithley.start_buffer()
             self.keithley.wait_for_buffer()
 
@@ -76,6 +120,7 @@ class ItProcedure():
 
         self.keithley.beep(392, 1)
         self.keithley.source_voltage = voltage
+
         self.keithley.start_buffer()
         self.keithley.wait_for_buffer()
 
