@@ -4,9 +4,9 @@ import time
 
 
 # save_path_position = (-1210, 100)
-save_path_position = (1200, 100)
+save_path_position = (345, 100)
 # file_name_position = (-1420, 770)
-file_name_position = (1200, 770)
+file_name_position = (350, 410)
 
 
 pyautogui.FAILSAFE = False
@@ -45,11 +45,12 @@ class CameraAutomation:
         if save_path is not None:
             # logger.debug(f"Setting save path to: {save_path}")
             pyautogui.click(save_path_position, button='left', duration=0.5, interval=self.mouse_speed)
+            pyautogui.hotkey('ctrl', 'a')
             pyautogui.typewrite(save_path, interval=self.type_speed)
             pyautogui.press('enter')
         
         # logger.debug("Setting filename")
-        pyautogui.click(file_name_position, button='left', duration=self.mouse_speed, clicks=2)
+        pyautogui.click(file_name_position, button='left', duration=self.mouse_speed, clicks=1)
         pyautogui.typewrite(file_name, interval=self.type_speed)
         time.sleep(0.3)
         pyautogui.press('enter')
@@ -59,10 +60,12 @@ class CameraAutomation:
 
 if __name__ == "__main__":
     
-    save_path = r"C:\Users\10552\Downloads\autogui_test"
-    file_name = "hello_world3.png"
-    # logger.info(f"Starting automation with file: {file_name} at path: {save_path}")
+    # save_path = r"C:\Users\10552\Downloads\autogui_test"
+    # file_name = "hello_world3.png"
+    # # logger.info(f"Starting automation with file: {file_name} at path: {save_path}")
     
-    cam = CameraAutomation()
-    cam.save_image_png(file_name, save_path=save_path)
+    # cam = CameraAutomation()
+    # cam.save_image_png(file_name, save_path=save_path)
+
+    display_mouse_position()
 
