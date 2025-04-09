@@ -16,7 +16,7 @@ camera = CameraAutomation()
 sensor_id = "D361091"
 date = time.strftime("%Y-%m-%d")
 trial = "A"
-save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\{sensor_id}_{date}_{trial}"
+save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\test_{date}_{trial}"
 led = LEDController()
 KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
 keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
@@ -77,32 +77,32 @@ if __name__ == "__main__":
     led.turn_off()
     keithley.disconnect()
 
-    current_readings_float = [float(reading) for reading in current_readings]
-    current_readings_float = np.array(current_readings_float)
-    print(f"{current_readings_float = }")
+    # current_readings_float = [float(reading) for reading in current_readings]
+    # current_readings_float = np.array(current_readings_float)
+    # print(f"{current_readings_float = }")
 
-    df = pd.DataFrame({"Voltage": voltages, "Current": current_readings_float})
-    df.to_csv(f"{save_path}\pockels_current_readings.csv", index=False)
+    # df = pd.DataFrame({"Voltage": voltages, "Current": current_readings_float})
+    # df.to_csv(f"{save_path}\pockels_current_readings.csv", index=False)
 
 
-    # Plot the IV curve
-    fig, ax = plt.subplots()
-    ax.plot(abs(voltages), abs(current_readings_float), '-o')
-    ax.set_xlabel("abs(Voltage) (V)")
-    ax.set_ylabel("abs(Current) (A)")
-    ax.set_title("IV Curve")
-    ax.grid(True)
-    fig.savefig(f"{save_path}\IV_plot.png")
+    # # Plot the IV curve
+    # fig, ax = plt.subplots()
+    # ax.plot(abs(voltages), abs(current_readings_float), '-o')
+    # ax.set_xlabel("abs(Voltage) (V)")
+    # ax.set_ylabel("abs(Current) (A)")
+    # ax.set_title("IV Curve")
+    # ax.grid(True)
+    # fig.savefig(f"{save_path}\IV_plot.png")
 
-    fig2, ax2 = plt.subplots()
-    ax2.plot(abs(voltages), abs(current_readings_float), '-o')
-    ax2.set_xlabel("abs(Voltage) (V)")
-    ax2.set_ylabel("abs(Current) (A)")
-    ax2.set_title("IV Curve")
-    ax2.grid(True)
-    ax2.set_yscale('log')
-    fig2.savefig(f"{save_path}\IV_plot_log.png")
+    # fig2, ax2 = plt.subplots()
+    # ax2.plot(abs(voltages), abs(current_readings_float), '-o')
+    # ax2.set_xlabel("abs(Voltage) (V)")
+    # ax2.set_ylabel("abs(Current) (A)")
+    # ax2.set_title("IV Curve")
+    # ax2.grid(True)
+    # ax2.set_yscale('log')
+    # fig2.savefig(f"{save_path}\IV_plot_log.png")
 
-    fig.show()
-    fig2.show()
+    # fig.show()
+    # fig2.show()
 
