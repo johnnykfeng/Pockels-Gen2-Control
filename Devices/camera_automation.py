@@ -1,12 +1,15 @@
 from loguru import logger
 import pyautogui
 import time
+import os
 
 
 # save_path_position = (-1210, 100)
 save_path_position = (345, 100)
 # file_name_position = (-1420, 770)
 file_name_position = (350, 410)
+record_button_position = (860, 230)
+recording_file_name_position = (1550, 320)
 
 
 pyautogui.FAILSAFE = False
@@ -57,6 +60,17 @@ class CameraAutomation:
         time.sleep(0.3)
         pyautogui.press('y')
         logger.success(f"Image saved successfully as {file_name}")
+
+    def save_recording_xvi(self, file_name, save_path=None):
+        logger.info(f"Saving recording as XVI - Filename: {file_name}, Path: {save_path}")
+
+        save_location = os.path.join(save_path, file_name)
+
+        pyautogui.click(recording_file_name_position, button='left', duration=0.5, interval=self.mouse_speed)
+        pyautogui.typewrite(save_location, interval=self.type_speed)
+        time.sleep(0.3)
+        pyautogui.click(record_button_position, button='left', duration=0.5, interval=self.mouse_speed)
+
 
 if __name__ == "__main__":
     

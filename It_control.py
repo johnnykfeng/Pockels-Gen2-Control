@@ -53,7 +53,7 @@ class PockelsProcedure():
         self.camera.save_image_png(file_name=f"{sensor_id}_{temperature}C_calib_cross_on.png", save_path=save_path)
         countdown_timer(3)
 
-    def execute(self, voltages, current_range, nplc, data_points, save_path, temperature, timestamp, sensor_id):
+    def execute_ramp_capture(self, save_path, timestamp, sensor_id, temperature, voltages, current_range, nplc, samples):
 
         save_path = os.path.join(save_path, f"CAMERA_IMAGES")
         if not os.path.exists(save_path):
@@ -69,9 +69,9 @@ class PockelsProcedure():
         for voltage in voltages:
             print("Setting voltage to: " + str(voltage))
 
-            load_ramp_trigger_model(self.keithley, data_points)
+            load_ramp_trigger_model(self.keithley, samples)
 
-            self.keithley.config_buffer(points=data_points)
+            self.keithley.config_buffer(points=samples)
 
             self.keithley.source_voltage = voltage
 
@@ -85,7 +85,7 @@ class PockelsProcedure():
 
             data_timestamps = []
             relative_timestamps = [0]
-            for idx in range(1, data_points + 1):
+            for idx in range(1, samples + 1):
                 self.keithley.write(":TRACe:DATA? %d, %d, 'defbuffer1', TSTamp" % (idx, idx))
                 t = self.keithley.read()
                 t = t.split(" ")[1]
@@ -96,10 +96,10 @@ class PockelsProcedure():
                 data_timestamps.append(t)
                 if idx >= 2:
                     relative_timestamps.append(data_timestamps[idx-1] - data_timestamps[0])
-            print("Approximate sampling frequency: %.1f HZ" % (1 / (relative_timestamps[-1] / data_points)))
+            print("Approximate sampling frequency: %.1f HZ" % (1 / (relative_timestamps[-1] / samples)))
 
             source_voltages = []
-            for idx in range(1, data_points + 1):
+            for idx in range(1, samples + 1):
                 self.keithley.write(":TRACe:DATA? %d, %d, 'defbuffer1', SOURce" % (idx, idx))
                 v = float(self.keithley.read())
                 source_voltages.append(v)
@@ -115,10 +115,9 @@ class PockelsProcedure():
                 data.append(line)
 
         ### Perform Shutoff Capture ###
-        load_shutoff_trigger_model(self.keithley, data_points)
-        self.keithley.config_buffer(points=data_points)
+        load_shutoff_trigger_model(self.keithley, samples)
+        self.keithley.config_buffer(points=samples)
 
-        self.keithley.beep(392, 1)
         self.keithley.source_voltage = voltage
 
         self.keithley.start_buffer()
@@ -134,7 +133,7 @@ class PockelsProcedure():
 
         data_timestamps = []
         relative_timestamps = [0]
-        for idx in range(1, data_points + 1):
+        for idx in range(1, samples + 1):
             self.keithley.write(":TRACe:DATA? %d, %d, 'defbuffer1', TSTamp" % (idx, idx))
             t = self.keithley.read()
             t = t.split(" ")[1]
@@ -145,10 +144,10 @@ class PockelsProcedure():
             data_timestamps.append(t)
             if idx >= 2:
                 relative_timestamps.append(data_timestamps[idx-1] - data_timestamps[0])
-        print("Approximate sampling frequency: %.1f HZ" % (1 / (relative_timestamps[-1] / data_points)))
+        print("Approximate sampling frequency: %.1f HZ" % (1 / (relative_timestamps[-1] / samples)))
 
         source_voltages = []
-        for idx in range(1, data_points + 1):
+        for idx in range(1, samples + 1):
             self.keithley.write(":TRACe:DATA? %d, %d, 'defbuffer1', SOURce" % (idx, idx))
             v = float(self.keithley.read())
             source_voltages.append(v)
@@ -166,19 +165,37 @@ class PockelsProcedure():
         return data
 
 
-def load_ramp_trigger_model(keithley, data_points):
+    def execute_shutoff_recording(self, save_path, voltage, samples):
+
+        save_path = os.path.join(save_path, f"CAMERA_VIDEOS")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        print(f"Ramping voltage to: {voltage}")
+        self.keithley.ramp_to_voltage(voltage)
+        countdown_timer(5)
+
+        load_shutoff_trigger_model(self.keithley, samples)
+        self.keithley.config_buffer(points=samples)
+
+        
+        
+        print("All Done :)")
+
+
+def load_ramp_trigger_model(keithley, samples):
     keithley.write(":TRIGger:BLOCK:BUFFer:CLEar 1")
     keithley.write(":TRIGger:BLOCK:SOURce:STATe 2, ON")
     keithley.write(":TRIGger:BLOCK:DELay:CONStant 3, 0")
     keithley.write(":TRIGger:BLOCK:MDIGitize 4, 'defbuffer1', 1")
-    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 5, " + str(data_points) + ", 4")
+    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 5, " + str(samples) + ", 4")
 
-def load_shutoff_trigger_model(keithley, data_points):
+def load_shutoff_trigger_model(keithley, samples):
     keithley.write(":TRIGger:BLOCK:BUFFer:CLEar 1")
     keithley.write(":TRIGger:BLOCK:MDIGitize 2, 'defbuffer1', 1")
-    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 3, " + str(data_points/2) + ", 2")
+    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 3, " + str(samples/2) + ", 2")
     keithley.write(":TRIGger:BLOCK:SOURce:STATe 4, OFF")
     keithley.write(":TRIGger:BLOCK:DELay:CONStant 5, 0")
     keithley.write(":TRIGger:BLOCK:MDIGitize 6, 'defbuffer1', 1")
-    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 7, " + str(data_points/2) + ", 6")
+    keithley.write(":TRIGger:BLOCK:BRANch:COUNter 7, " + str(samples/2) + ", 6")
     

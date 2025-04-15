@@ -1,5 +1,5 @@
 from Devices.temperature_controller import TC720control
-import It_manual_test_script as it
+import It_control as it
 from time import sleep
 from datetime import datetime
 import os
@@ -102,7 +102,7 @@ def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, sampl
 
         experiment = it.PockelsProcedure()
         experiment.startup(sensor_id, set_point, cross_angle, parallel_angle, led_current, save_path)
-        It_data = experiment.execute(voltages, current_range, nplc, samples, save_path, set_point, timestamp, sensor_id)
+        It_data = experiment.execute_ramp_capture(save_path, timestamp, sensor_id, set_point, voltages, current_range, nplc, samples)
 
         save_path = os.path.join(save_path, "IT_DATA")
         if not os.path.exists(save_path):

@@ -165,6 +165,10 @@ class TC720control:
         return temp2
 
     def write_set_point(self, sPoint):
+
+        '''
+        
+        '''
         # Convert temperature from decimal form to hexadecimal
         hex_num = hex(int((sPoint * 100)))[2:].zfill(4)
 
