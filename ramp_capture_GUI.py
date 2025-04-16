@@ -118,13 +118,13 @@ def run_experiment(sensor_id, temperatures, voltages, current_range, nplc, sampl
 
 class GUI(App):
     def build(self):
-
         # Create a BoxLayout to hold all elements
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
         
         # Create a ScrollView for the text inputs
-        scroll_view = ScrollView(size_hint=(1, 0.8))
-        input_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=600)
+        scroll_view = ScrollView(size_hint=(0.95, 0.8), pos_hint={'center_x': 0.5})
+        input_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=600, spacing=10)
+        input_layout.bind(minimum_height=input_layout.setter('height'))
         
         # Define labels and corresponding input names
         labels = ["Sensor ID", "Temperatures", "Voltages", "Keithley Current Range (A)", "Keithley NPLC", "Samples per Voltage", 
@@ -143,18 +143,40 @@ class GUI(App):
         self.inputs = []
         
         for i, label_text in enumerate(labels):
-            label = Label(text=f"{label_text}: ", size_hint_y=None, height=30)
-            text_input = TextInput(size_hint_y=None, height=30, multiline=False)
+            # Create a horizontal BoxLayout for each label-input pair
+            row_layout = BoxLayout(size_hint_y=None, height=40, spacing=10)
+            
+            label = Label(
+                text=f"{label_text}: ",
+                size_hint_x=0.4,
+                halign='right',
+                valign='middle'
+            )
+            label.bind(size=label.setter('text_size'))
+            
+            text_input = TextInput(
+                size_hint_x=0.6,
+                multiline=False,
+                padding=[10, 10, 10, 10],
+                halign='center'
+            )
             text_input.text = defaults[label_text]
-            input_layout.add_widget(label)
-            input_layout.add_widget(text_input)
+            
+            row_layout.add_widget(label)
+            row_layout.add_widget(text_input)
+            input_layout.add_widget(row_layout)
             self.inputs.append(text_input)
 
         scroll_view.add_widget(input_layout)
         layout.add_widget(scroll_view)
         
         # Create the Run button
-        run_button = Button(text='Run', size_hint_y=None, height=50)
+        run_button = Button(
+            text='Run',
+            size_hint=(0.3, None),
+            height=50,
+            pos_hint={'center_x': 0.5}
+        )
         run_button.bind(on_press=self.on_run_button_click)
         layout.add_widget(run_button)
         

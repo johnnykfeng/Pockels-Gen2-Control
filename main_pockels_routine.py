@@ -7,13 +7,13 @@ from utils import countdown_timer
 import time
 import os
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+# import pandas as pd
+# import matplotlib.pyplot as plt
 
 rotation_mount = RotationMount("27267316")
 camera = CameraAutomation()
 # save_path = r"C:\Users\10552\Downloads\pockels_run"
-sensor_id = "D361091"
+sensor_id = "D420222"
 date = time.strftime("%Y-%m-%d")
 trial = "A"
 save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\test_{date}_{trial}"

@@ -3,11 +3,11 @@ import pyautogui
 import time
 import os
 
-
+# hey owen, i change the posistions back
 # save_path_position = (-1210, 100)
-save_path_position = (345, 100)
+save_path_position = (1150, 101)
 # file_name_position = (-1420, 770)
-file_name_position = (350, 410)
+file_name_position = (1150, 782)
 record_button_position = (860, 230)
 recording_file_name_position = (1550, 320)
 

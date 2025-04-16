@@ -37,7 +37,7 @@ class PockelsProcedure():
         self.led.set_current(led_current)
         self.led.turn_off()
 
-        save_path = os.path.join(save_path, f"CAMERA_IMAGES")
+        save_path = os.path.join(save_path, "CAMERA_IMAGES")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
@@ -55,7 +55,7 @@ class PockelsProcedure():
 
     def execute_ramp_capture(self, save_path, timestamp, sensor_id, temperature, voltages, current_range, nplc, samples):
 
-        save_path = os.path.join(save_path, f"CAMERA_IMAGES")
+        save_path = os.path.join(save_path, "CAMERA_IMAGES")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
@@ -167,7 +167,7 @@ class PockelsProcedure():
 
     def execute_shutoff_recording(self, save_path, voltage, samples):
 
-        save_path = os.path.join(save_path, f"CAMERA_VIDEOS")
+        save_path = os.path.join(save_path, "CAMERA_VIDEOS")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
