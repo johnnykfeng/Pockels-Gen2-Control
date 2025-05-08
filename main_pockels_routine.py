@@ -7,16 +7,18 @@ from utils import countdown_timer
 import time
 import os
 import numpy as np
-# import pandas as pd
-# import matplotlib.pyplot as plt
+import pandas as pd
+import matplotlib.pyplot as plt
 
 rotation_mount = RotationMount("27267316")
 camera = CameraAutomation()
+stabilization_time = 5
 # save_path = r"C:\Users\10552\Downloads\pockels_run"
-sensor_id = "D420222"
+wafer_id = "New_optical_alignment"
+sensor_id = "D418775"
 date = time.strftime("%Y-%m-%d")
 trial = "A"
-save_path = f"C:\\Code\\Pockels-Gen2-Control\\CAMERA_IMAGES\\test_{date}_{trial}"
+save_path = f"C:\\Users\\10552\\OneDrive - Redlen Technologies\\R&D-UVic Team - Data\\POCKELS\\{wafer_id}_{sensor_id}_{date}_{trial}"
 led = LEDController()
 KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
 keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
@@ -28,29 +30,29 @@ if __name__ == "__main__":
     cross = 130
     parallel = 40
     rotation_mount.open_device()
-    rotation_mount.home_device()
+    # rotation_mount.home_device()
     rotation_mount.setup_conversion()
 
     # led.set_current(100)
-    led.set_current(200)
+    led.set_current(500)
     led.turn_off()
 
     rotation_mount.move_to_position(parallel)
-    camera.save_image_png(file_name="calib_parallel_off.png", save_path=save_path)
+    camera.save_image_png_typewrite(file_name="calib_parallel_off.png", save_path=save_path)
     countdown_timer(3)
 
     led.turn_on()
-    camera.save_image_png(file_name="calib_parallel_on.png", save_path=save_path)
+    camera.save_image_png_typewrite(file_name="calib_parallel_on.png", save_path=None)
     countdown_timer(3)
 
     rotation_mount.move_to_position(cross)
-    camera.save_image_png(file_name="calib_cross_on.png", save_path=save_path)
+    camera.save_image_png_typewrite(file_name="calib_cross_on.png", save_path=None)
     countdown_timer(3)
 
     # == START MEASUREMENT WITH HIGH VOLTAGE BIAS == #
     keithley.initialize_instrument_settings(
-        current_limit=10e-6,
-        current_range=10e-6,
+        current_limit=100e-6,
+        current_range=100e-6,
         auto_range=False,
         NPLC=1,
         averaging_state=True,
@@ -58,13 +60,19 @@ if __name__ == "__main__":
     )
 
     current_readings = []
-    voltages = np.arange(0, -1101, -50)
+    voltages = np.arange(-100, -1101, -100)
     for voltage in voltages:
+        print(f"Start ramp to {abs(voltage)}V bias")
         keithley.ramp_voltage(voltage, step_size=10, step_delay=0.5)
-        time.sleep(2)
+        print("Waiting for 10 seconds for High Voltage to stabilize")
+        countdown_timer(stabilization_time)
         current_readings.append(keithley.query(":READ?"))
-        camera.save_image_png(file_name=f"bias_{abs(voltage)}V_xray_0mA.png", 
+        camera.save_image_png_typewrite(file_name=f"cross_{abs(voltage)}V_xray_0mA.png", 
                               save_path=None)
+        rotation_mount.move_to_position(parallel)
+        camera.save_image_png_typewrite(file_name=f"parallel_{abs(voltage)}V_xray_0mA.png", 
+                              save_path=None)
+        rotation_mount.move_to_position(cross)
         countdown_timer(3)
     
     keithley.ramp_voltage(0, step_size=50, step_delay=1) # ramp down to 0V
@@ -77,32 +85,36 @@ if __name__ == "__main__":
     led.turn_off()
     keithley.disconnect()
 
-    # current_readings_float = [float(reading) for reading in current_readings]
-    # current_readings_float = np.array(current_readings_float)
-    # print(f"{current_readings_float = }")
-
-    # df = pd.DataFrame({"Voltage": voltages, "Current": current_readings_float})
-    # df.to_csv(f"{save_path}\pockels_current_readings.csv", index=False)
+    current_readings_float = [float(reading) for reading in current_readings]
+    current_readings_float = np.array(current_readings_float)
+    print(f"{current_readings_float = }")
 
 
-    # # Plot the IV curve
-    # fig, ax = plt.subplots()
-    # ax.plot(abs(voltages), abs(current_readings_float), '-o')
-    # ax.set_xlabel("abs(Voltage) (V)")
-    # ax.set_ylabel("abs(Current) (A)")
-    # ax.set_title("IV Curve")
-    # ax.grid(True)
-    # fig.savefig(f"{save_path}\IV_plot.png")
+    IV_save_path = os.path.join(save_path, "IV_data")
+    if not os.path.exists(IV_save_path):
+        os.makedirs(IV_save_path)
+    df = pd.DataFrame({"Voltage": voltages, "Current": current_readings_float})
+    df.to_csv(f"{IV_save_path}\pockels_current_readings.csv", index=False)
 
-    # fig2, ax2 = plt.subplots()
-    # ax2.plot(abs(voltages), abs(current_readings_float), '-o')
-    # ax2.set_xlabel("abs(Voltage) (V)")
-    # ax2.set_ylabel("abs(Current) (A)")
-    # ax2.set_title("IV Curve")
-    # ax2.grid(True)
-    # ax2.set_yscale('log')
-    # fig2.savefig(f"{save_path}\IV_plot_log.png")
 
-    # fig.show()
-    # fig2.show()
+    # Plot the IV curve
+    fig, ax = plt.subplots()
+    ax.plot(abs(voltages), abs(current_readings_float), '-o')
+    ax.set_xlabel("abs(Voltage) (V)")
+    ax.set_ylabel("abs(Current) (A)")
+    ax.set_title("IV Curve")
+    ax.grid(True)
+    fig.savefig(f"{IV_save_path}\IV_plot.png")
+
+    fig2, ax2 = plt.subplots()
+    ax2.plot(abs(voltages), abs(current_readings_float), '-o')
+    ax2.set_xlabel("abs(Voltage) (V)")
+    ax2.set_ylabel("abs(Current) (A)")
+    ax2.set_title("IV Curve")
+    ax2.grid(True)
+    ax2.set_yscale('log')
+    fig2.savefig(f"{IV_save_path}\IV_plot_log.png")
+
+    fig.show()
+    fig2.show()
 
