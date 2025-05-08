@@ -7,7 +7,8 @@ import os
 # save_path_position = (-1210, 100)
 save_path_position = (1150, 101)
 # file_name_position = (-1420, 770)
-file_name_position = (1150, 782)
+# file_name_position = (1150, 782)
+file_name_position = (1150, 752)
 record_button_position = (860, 230)
 recording_file_name_position = (1550, 320)
 
@@ -31,7 +32,7 @@ class CameraAutomation:
         logger.info("Initializing CameraAutomation")
         self.pause_time = 1.0
         self.mouse_speed = 0.1
-        self.type_speed = 0.01
+        self.type_speed = 0.02
         self.screen_size = pyautogui.size()
         self.screen_number = 2
         self.screen_center = (self.screen_size[0]//2, self.screen_size[1]//2)
@@ -61,6 +62,34 @@ class CameraAutomation:
         pyautogui.press('y')
         logger.success(f"Image saved successfully as {file_name}")
 
+    def save_image_png_typewrite(self, file_name, save_path=None):
+        logger.info(f"Saving image as PNG - Filename: {file_name}, Path: {save_path}")
+        
+        pyautogui.click(x=self.screen_center[0]/2, y=self.screen_center[1], button='left', duration=1)
+        # logger.debug(f"Screen center: {self.screen_center}")
+        pyautogui.press('f4')
+        
+        if save_path is not None:
+            # logger.debug(f"Setting save path to: {save_path}")
+            # pyautogui.click(save_path_position, button='left', duration=0.5, interval=self.mouse_speed)
+            # pyautogui.hotkey('ctrl', 'a')
+            time.sleep(0.1)
+            pyautogui.typewrite(save_path, interval=self.type_speed)
+            pyautogui.press('enter')
+            num_characters = len(save_path)
+            pyautogui.keyDown('ctrl')
+            pyautogui.press('backspace', presses=num_characters)
+            pyautogui.keyUp('ctrl')
+        
+        # logger.debug("Setting filename")
+        time.sleep(1.0)
+        pyautogui.typewrite(file_name, interval=self.type_speed)
+        time.sleep(0.3)
+        pyautogui.press('enter')
+        time.sleep(0.5)
+        pyautogui.press('y')
+        logger.success(f"Image saved successfully as {file_name}")
+
     def save_recording_xvi(self, file_name, save_path=None):
         logger.info(f"Saving recording as XVI - Filename: {file_name}, Path: {save_path}")
 
@@ -81,5 +110,8 @@ if __name__ == "__main__":
     # cam = CameraAutomation()
     # cam.save_image_png(file_name, save_path=save_path)
 
-    display_mouse_position()
+    cam = CameraAutomation()
+    save_path = r"C:\Code\Pockels-Gen2-Control\CAMERA_IMAGES\Test_2025-05-08"
+    cam.save_image_png_typewrite(file_name="test4.png", save_path=save_path)
+    # display_mouse_position()
 
