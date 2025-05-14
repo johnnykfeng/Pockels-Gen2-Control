@@ -9,8 +9,11 @@ save_path_position = (1150, 101)
 # file_name_position = (-1420, 770)
 # file_name_position = (1150, 782)
 file_name_position = (1150, 752)
-record_button_position = (860, 230)
-recording_file_name_position = (1550, 320)
+# record_button_position = (860, 230)
+record_button_position = (52, 234)
+recording_file_path_position = (1000, 320)
+recording_file_path_offset = (700, 320)
+start_capturing_button_position = (15, 60)
 
 
 pyautogui.FAILSAFE = False
@@ -90,16 +93,39 @@ class CameraAutomation:
         pyautogui.press('y')
         logger.success(f"Image saved successfully as {file_name}")
 
-    def save_recording_xvi(self, file_name, save_path=None):
-        logger.info(f"Saving recording as XVI - Filename: {file_name}, Path: {save_path}")
+    # def save_recording_xvi(self, file_name, save_path=None):
+    #     logger.info(f"Saving recording as XVI - Filename: {file_name}, Path: {save_path}")
 
-        save_location = os.path.join(save_path, file_name)
+    #     save_location = os.path.join(save_path, file_name)
 
-        pyautogui.click(recording_file_name_position, button='left', duration=0.5, interval=self.mouse_speed)
-        pyautogui.typewrite(save_location, interval=self.type_speed)
+    #     pyautogui.click(recording_file_path_offset, button='left', duration=0.5, interval=self.mouse_speed)
+    #     pyautogui.typewrite(save_location, interval=self.type_speed)
+    #     time.sleep(0.3)
+    #     pyautogui.click(record_button_position, button='left', duration=0.5, interval=self.mouse_speed)
+    
+    def record_button_click(self):
+        pyautogui.click(record_button_position, button='left', duration=0.1, interval=self.mouse_speed)
+        time.sleep(0.1)
+        pyautogui.press('y')
+
+    def type_recording_file_path(self, file_path):
+        pyautogui.click(recording_file_path_offset,
+                        button='left', 
+                        duration=0.5, 
+                        interval=self.mouse_speed)
+        time.sleep(0.1)
+        pyautogui.click(recording_file_path_position, 
+                        button='left', 
+                        duration=0.5, 
+                        interval=self.mouse_speed)
+        pyautogui.typewrite(file_path, interval=self.type_speed)
         time.sleep(0.3)
-        pyautogui.click(record_button_position, button='left', duration=0.5, interval=self.mouse_speed)
 
+    def start_capturing_button_click(self):
+        pyautogui.click(start_capturing_button_position, 
+                        button='left', 
+                        duration=0.5, 
+                        interval=self.mouse_speed)
 
 if __name__ == "__main__":
     
@@ -110,8 +136,8 @@ if __name__ == "__main__":
     # cam = CameraAutomation()
     # cam.save_image_png(file_name, save_path=save_path)
 
-    cam = CameraAutomation()
-    save_path = r"C:\Code\Pockels-Gen2-Control\CAMERA_IMAGES\Test_2025-05-08"
-    cam.save_image_png_typewrite(file_name="test4.png", save_path=save_path)
-    # display_mouse_position()
+    # cam = CameraAutomation()
+    # save_path = r"C:\Code\Pockels-Gen2-Control\CAMERA_IMAGES\Test_2025-05-08"
+    # cam.save_image_png_typewrite(file_name="test4.png", save_path=save_path)
+    display_mouse_position()
 
