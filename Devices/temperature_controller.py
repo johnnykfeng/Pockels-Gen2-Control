@@ -1,5 +1,10 @@
 import time
 import serial
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import countdown_timer
 
 class TC720control:
 
@@ -384,3 +389,68 @@ class TC720control:
 
         time.sleep(0.1)
         return
+    
+    def set_temperature(self, temperature, wait_time=180):
+        """Set temperature setpoint and wait for stabilization.
+
+        Sets the temperature controller setpoint and automatically configures appropriate 
+        heat/cool multipliers based on the target temperature. Enables output if not already
+        enabled and waits for temperature to stabilize.
+
+        Args:
+            temperature (float): Target temperature setpoint in Celsius
+            wait_time (int, optional): Time in seconds to wait for temperature stabilization. 
+                                     Defaults to 180 seconds.
+        """
+        if 10 <= temperature < 20:
+            heat_multiplier = 0.75
+            cool_multiplier = 0.75
+
+        elif 20 <= temperature < 30:
+            heat_multiplier = 0.10
+            cool_multiplier = 0.10
+
+        elif 30 <= temperature < 40:
+            heat_multiplier = 0.15
+            cool_multiplier = 0.15
+
+        elif 40 <= temperature < 50:
+            heat_multiplier = 0.30
+            cool_multiplier = 0.30
+
+        elif 50 <= temperature < 60:
+            heat_multiplier = 0.75
+            cool_multiplier = 0.75
+
+        elif temperature >= 60:
+            heat_multiplier = 1.00
+            cool_multiplier = 1.00
+        else:
+            print("Don't be so cold... You'll get condensation")
+
+        self.write_heat_multiplier(heat_multiplier)
+        self.write_cool_multiplier(cool_multiplier)
+        self.write_set_point(temperature)
+
+        if self.read_output_enable() == 0:
+            self.write_output_enable('1')
+
+        print(f"Set point temperature: {self.read_set_point()}C")
+        print(f"Waiting {wait_time} seconds for temperature to stabilize")
+        countdown_timer(wait_time)
+
+        return {'set_point': self.read_set_point(), 
+                'output_enable': self.read_output_enable(), 
+                'read_temp1': self.read_temp1(), 
+                'read_temp2': self.read_temp2()}
+
+
+if __name__ == "__main__":
+    TC = TC720control("com6")
+    print(TC.read_temp1())
+    print(TC.read_temp2())
+    print(TC.read_set_point())
+    print(TC.read_output_enable())
+
+    print(TC.set_temperature(temperature=25, wait_time=120))
+ 
