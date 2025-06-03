@@ -41,3 +41,29 @@ def voltages_log_space(min_voltage, max_voltage, data_points):
             min_voltage = near_zero
         voltages = np.geomspace(min_voltage, max_voltage, data_points)
     return voltages
+
+def voltages_dual_direction(min_voltage, max_voltage, data_points):
+    """
+    Generate a list of voltages in a logarithmic space between min_voltage and max_voltage.
+    The list will have data_points number of elements. Then create a new list from max_voltage to min_voltage. 
+    Then concatenate the two lists and return the result.
+    """
+    voltages = voltages_log_space(min_voltage, max_voltage, data_points)
+    voltages = np.concatenate([voltages, -1 * voltages])
+    return voltages
+
+
+if __name__ == "__main__":
+    voltages = voltages_log_space(min_voltage=-1000, max_voltage=1000, data_points=100)
+    print(voltages)
+    # import matplotlib.pyplot as plt
+    # plt.plot(voltages, '.-')
+    # plt.grid(True)
+    # plt.show()
+    voltages = voltages_dual_direction(min_voltage=-1000, max_voltage=1000, data_points=100)
+    print(voltages)
+    import matplotlib.pyplot as plt
+    plt.plot(voltages, '.-')
+    plt.grid(True)
+    plt.show()
+
