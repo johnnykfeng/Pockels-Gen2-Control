@@ -435,8 +435,8 @@ class TC720control:
         if self.read_output_enable() == 0:
             self.write_output_enable('1')
 
-        print(f"Set point temperature: {self.read_set_point()}C")
-        print(f"Waiting {wait_time} seconds for temperature to stabilize")
+        # print(f"Set point temperature: {self.read_set_point()}C")
+        # print(f"Waiting {wait_time} seconds for temperature to stabilize")
         countdown_timer(wait_time)
 
         return {'set_point': self.read_set_point(), 
@@ -452,5 +452,5 @@ if __name__ == "__main__":
     print(TC.read_set_point())
     print(TC.read_output_enable())
 
-    print(TC.set_temperature(temperature=25, wait_time=120))
+    # print(TC.set_temperature(temperature=25, wait_time=120))
  

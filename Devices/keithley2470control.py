@@ -15,6 +15,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from enum import Enum
 from typing import List
+import sys
+sys.path.append(r"C:/Code/Pockels-Gen2-Control")
+from utils import countdown_timer
+from pathlib import Path
+import json
 
 rm = pyvisa.ResourceManager()
 print(rm.list_resources())
@@ -71,27 +76,89 @@ class Keithley2470Control:
         else:
             self.instrument.write(":ROUT:TERM REAR")
 
-    def voltages_log_space(self, min_voltage, max_voltage, data_points):
+    @staticmethod
+    def voltages_log_space(
+                           start_voltage:int, 
+                            stop_voltage:int, 
+                            data_points:int, 
+                            near_zero=0.01,
+                            round_decimal=None):
         """
         Generate a list of voltages in a logarithmic space between min_voltage and max_voltage.
         The list will have data_points number of elements.
         """
-        near_zero = 0.01 # a number that is almost zero
-        if min_voltage > max_voltage or min_voltage==max_voltage:
-            raise ValueError(f"min_voltage ({min_voltage}) cannot be greater than or equal to max_voltage ({max_voltage})")
-        
-        if min_voltage < 0 and max_voltage > 0:
-            negatives = -1 * np.geomspace(abs(min_voltage), near_zero, round(data_points / 2))
-            positives = np.geomspace(near_zero, abs(max_voltage), round(data_points / 2))
+        # near_zero = 0.01 # a number that is almost zero
+        if start_voltage < 0 and stop_voltage > 0:
+            negatives = -1 * np.geomspace(abs(start_voltage), near_zero, round(data_points / 2))
+            positives = np.geomspace(near_zero, abs(stop_voltage), round(data_points / 2))
             voltages = np.concatenate([negatives, positives])
-        elif min_voltage < 0 and max_voltage <= 0:
-            if max_voltage == 0:
-                max_voltage = near_zero
-            voltages = -1 * np.geomspace(abs(min_voltage), abs(max_voltage), data_points)
-        elif min_voltage >= 0 and max_voltage >= 0:
-            if min_voltage == 0:
-                min_voltage = near_zero
-            voltages = np.geomspace(min_voltage, max_voltage, data_points)
+        elif start_voltage < 0 and stop_voltage <= 0:
+            if stop_voltage == 0:
+                stop_voltage = near_zero
+            voltages = -1 * np.geomspace(abs(start_voltage), abs(stop_voltage), data_points)
+        elif start_voltage >= 0 and stop_voltage >= 0:
+            if start_voltage == 0:
+                start_voltage = near_zero
+            voltages = np.geomspace(start_voltage, stop_voltage, data_points)
+        elif stop_voltage < 0 and start_voltage >=0:
+            voltages = -1 * np.geomspace(near_zero, abs(stop_voltage), data_points)
+
+        if round_decimal is not None:
+            return np.round(voltages, round_decimal)
+        return voltages
+    
+    @staticmethod
+    def voltages_neg_to_pos(
+                            max_voltage=1100, 
+                            data_points_per_side=10, 
+                            higher_voltages_step=100, 
+                            near_zero=0.1):
+        voltages_A = np.geomspace(near_zero, 100, data_points_per_side)
+        voltages_A = np.concatenate([voltages_A, 
+                                    np.arange(200, max_voltage+1, higher_voltages_step)])
+        voltages_B = voltages_A[::-1]
+        voltages_pos = np.concatenate([voltages_A, voltages_B])
+        voltages_neg = -1 * voltages_pos
+        voltages = np.concatenate([voltages_neg, voltages_pos])
+        return voltages
+    
+    @staticmethod
+    def voltages_pos_to_neg(
+                            max_voltage=1100, 
+                            data_points_per_side=10, 
+                            higher_voltages_step=100, 
+                            near_zero=0.1):
+        voltages_A = np.geomspace(near_zero, 100, data_points_per_side)
+        voltages_A = np.concatenate([voltages_A, 
+                                    np.arange(200, max_voltage+1, higher_voltages_step)])
+        voltages_B = voltages_A[::-1]
+        voltages_pos = np.concatenate([voltages_A, voltages_B])
+        voltages_neg = -1 * voltages_pos
+        voltages = np.concatenate([voltages_pos, voltages_neg])
+        return voltages
+    
+    @staticmethod
+    def voltages_zero_to_neg(max_voltage=1100, 
+                         data_points_per_side=10, 
+                         higher_voltages_step=100, 
+                         near_zero=0.1):
+        voltages_A = np.geomspace(near_zero, 100, data_points_per_side)
+        voltages_A = np.concatenate([voltages_A, 
+                                    np.arange(200, max_voltage+1, higher_voltages_step)])
+        voltages_B = voltages_A[::-1]
+        voltages = np.concatenate([voltages_A, voltages_B])
+        return -1*voltages
+    
+    @staticmethod
+    def voltages_zero_to_pos(max_voltage=1100, 
+                             data_points_per_side=10, 
+                             higher_voltages_step=100, 
+                             near_zero=0.1):
+        voltages_A = np.geomspace(near_zero, 100, data_points_per_side)
+        voltages_A = np.concatenate([voltages_A, 
+                                    np.arange(200, max_voltage+1, higher_voltages_step)])
+        voltages_B = voltages_A[::-1]
+        voltages = np.concatenate([voltages_A, voltages_B])
         return voltages
 
     def _check_connection(self):
@@ -146,8 +213,6 @@ class Keithley2470Control:
         if self.verbose:
             print(f"Query: {command}")
         return self.instrument.query(command)
-
-
 
     def initialize_instrument_settings(self, 
                                        current_limit=10e-6, 
@@ -245,6 +310,7 @@ class Keithley2470Control:
             raise ValueError("Invalid range value. Use 'auto' or a number.")
 
         if target_voltage is not None:
+            self.instrument.write("*WAI")
             self.instrument.write(f":source:voltage {str(target_voltage)}")
             self.running_voltage = target_voltage    
 
@@ -259,11 +325,15 @@ class Keithley2470Control:
         if self.running_voltage > target_voltage:
             while self.running_voltage > target_voltage:
                 self.running_voltage -= step_size
+                # self.instrument.write("*WAI")
+                # self.instrument.write(f":SOURce:VOLTage {str(target_voltage)}")
                 self.set_voltage(self.running_voltage)
                 time.sleep(step_delay)
         elif self.running_voltage < target_voltage:
             while self.running_voltage < target_voltage:
                 self.running_voltage += step_size
+                # self.instrument.write("*WAI")
+                # self.instrument.write(f":SOURce:VOLTage {str(target_voltage)}")
                 self.set_voltage(self.running_voltage)
                 time.sleep(step_delay)
         else:
@@ -293,7 +363,26 @@ class Keithley2470Control:
             row_df[buffer_columns[i].name] = buffer_data[i :: len(buffer_columns)]
         return row_df
     
-    def update_IV_data(self, IV_data, voltage,buffer_columns=None):
+    def get_last_buffer_dict(self, buffer_data, buffer_columns=None):
+        """
+        Args:
+            buffer_data (str): The buffer data as a string
+            buffer_columns (list): The columns to be included in the dataframe
+        Returns:
+            dict: The last row of the buffer data as a dictionary
+        """
+        buffer_data = buffer_data.split(",")
+        # print(f"buffer_data: {buffer_data}")
+        row_dict = {}
+        if buffer_columns is None:
+            buffer_columns = self.default_buffer_columns
+        for i in range(len(buffer_columns)):
+            # row_dict[buffer_columns[i].name] = buffer_data[i :: len(buffer_columns)][-1]
+            row_dict[buffer_columns[i].name] = buffer_data[i]
+        # print(f"row_dict: {row_dict}")
+        return row_dict
+    
+    def update_IV_data(self, voltage,buffer_columns=None):
         """
         Args:
             IV_data (pd.DataFrame): The IV data as a dataframe
@@ -306,9 +395,9 @@ class Keithley2470Control:
             buffer_columns = self.default_buffer_columns
         buffer_columns_string = ", ".join([col.name for col in buffer_columns])
         buffer_data = self.query(f":READ? 'defbuffer1', {buffer_columns_string}")
-        buffer_dataframe = self.get_last_buffer_dataframe(buffer_data, buffer_columns)
-        buffer_dataframe['SET_VOLTAGE'] = voltage
-        self.IV_data = pd.concat([self.IV_data, buffer_dataframe], ignore_index=True)
+        buffer_dict = self.get_last_buffer_dict(buffer_data, buffer_columns)
+        buffer_dict['SET_VOLTAGE'] = voltage
+        self.IV_data = pd.concat([self.IV_data, pd.DataFrame([buffer_dict])], ignore_index=True)
         return self.IV_data
     
     def set_limit_and_range(self, voltage_range, current_limit):
@@ -355,15 +444,23 @@ class Keithley2470Control:
         self.instrument.write(f":TRAC:FILL:MODE CONT, '{buffer_name}'")
         # self.instrument.write(f":TRIG:LOAD 'SimpleLoop', {points}")
 
-    def advanced_IV_routine(self, voltages, source_measure_delay=1):
+    def advanced_IV_routine(self, 
+                            voltages, 
+                            source_measure_delay=5, 
+                            NPLC=10, 
+                            averaging_count=10,
+                            camera_callback=None):
         """
         Perform an advanced IV measurement
+
+        TODO:
+        - add a callback function to capture camera images for Pockels
         """
         self.instrument.write(":SENSe:CURRent:AZERo ON")
-        self.instrument.write(":SENSe:CURRent:NPLC 10")
+        self.instrument.write(f":SENSe:CURRent:NPLC {str(NPLC)}")
         self.instrument.write(":SENSe:CURRent:AVERage ON")
-        self.instrument.write(":SENSe:CURRent:AVERage:COUNt 10")
-        self.instrument.write(f":SOURce:VOLTage:DELay {str(source_measure_delay)}")
+        self.instrument.write(f":SENSe:CURRent:AVERage:COUNt {str(averaging_count)}")
+        # self.instrument.write(f":SOURce:VOLTage:DELay {str(source_measure_delay)}")
 
         for idx, voltage in enumerate(voltages):
 
@@ -371,145 +468,156 @@ class Keithley2470Control:
 
             voltage = np.round(voltage, 3)
             if abs(voltage) < 0.21:
+                print("Setting limit and range to 0.2 V and 1e-7 A")
                 self.set_limit_and_range(voltage_range=0.2, current_limit=1e-7)
             elif abs(voltage) < 2.1:
-                self.set_limit_and_range(voltage_range=2, current_limit=1e-6)
+                print("Setting limit and range to 2 V and 1e-6 A")
+                self.set_limit_and_range(voltage_range=2, current_limit=1e-7)
             elif abs(voltage) < 21:
+                print("Setting limit and range to 20 V and 1e-5 A")
                 self.set_limit_and_range(voltage_range=20, current_limit=1e-6)
             elif abs(voltage) < 210:
+                print("Setting limit and range to 200 V and 1e-4 A")
                 self.set_limit_and_range(voltage_range=200, current_limit=1e-5)
-            else:
+            elif abs(voltage) < 600:
+                print("Setting limit and range to 600 V and 1e-3 A")
                 self.set_limit_and_range(voltage_range=1000, current_limit=1e-4)
+            else:
+                print("Setting limit and range to 1000 V and 1e-3 A")
+                self.set_limit_and_range(voltage_range=1000, current_limit=1e-3)
 
-            self.instrument.write(f":SOURce:VOLTage {str(voltage)}")
+            if abs(voltage) > 200:
+                self.instrument.write("*WAI")
+                self.ramp_voltage(voltage, step_size=10, step_delay=0.5)
+            else:
+                self.instrument.write("*WAI")
+                self.instrument.write(f":SOURce:VOLTage {str(voltage)}")
+
+            if camera_callback is not None and voltage >= 100:
+                camera_callback(voltage)
+
             self.running_voltage = voltage # update the running voltage attribute
             if self.output_state == "OFF":
                 self.enable_output()
+
+            time.sleep(source_measure_delay)
             self.instrument.write(":*WAI")
-            time.sleep(1)
-            self.update_IV_data(self.IV_data, 
-                                voltage=voltage,
-                                buffer_columns=None)
+            self.update_IV_data(voltage=voltage, buffer_columns=None)
         
             print(self.IV_data.tail(1))
 
-        
+        self.ramp_voltage(0, step_size=25, step_delay=0.5)
+
         self.IV_data['READING'] = self.IV_data['READING'].astype(float)
         self.IV_data['SOURCE'] = self.IV_data['SOURCE'].astype(float)
-        self.IV_data['DATE'] = pd.to_datetime(self.IV_data['DATE'])
-        self.IV_data['TIME'] = pd.to_datetime(self.IV_data['TIME'])
 
         print("\nIV measurement complete!\n")
-        self.ramp_voltage(0, step_size=10, step_delay=0.1)
-        self.disable_output()
-        self.disconnect()
+        return self.IV_data
 
 if __name__ == "__main__":
-    import sys
-    sys.path.append(r"C:/Code/Pockels-Gen2-Control")
+
+    start_time = time.time()
     KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
     ktly = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
 
-    voltages_A = ktly.voltages_log_space(min_voltage=0, max_voltage=200, data_points=30)
-    voltages_B = np.arange(300, 1101, 100)
-    voltages = np.concatenate([voltages_A, voltages_B])
-    print(voltages)
-    ktly.advanced_IV_routine(voltages, source_measure_delay=1)
-    ktly.IV_data.to_csv("advanced_IV_data.csv", index=False)
+    # countdown_timer(seconds=30)
+    # Negative Voltages
+    # voltages_A = ktly.voltages_log_space(start_voltage=0, 
+    #                                     stop_voltage=-100, 
+    #                                     data_points=data_points,
+    #                                     near_zero=0.1)
+    # voltages_B = np.arange(-150, -1101, -50)
+    # neg_voltages = np.concatenate([voltages_A, voltages_B])
+    # print(f"Negative Voltages: \n{neg_voltages}")
+    # IV_data_1 = ktly.advanced_IV_routine(neg_voltages, 
+    #                                      source_measure_delay=source_measure_delay)
+    # IV_data_1.to_csv(f"{sensor_id}_negative_IV_data.csv", index=False)
 
+    # pos_voltages = neg_voltages * (-1.0)
+    # print(f"Positive Voltages: \n{pos_voltages}")
 
+    # IV_data_2 = ktly.advanced_IV_routine(pos_voltages, 
+    #                                      source_measure_delay=source_measure_delay)
+    # IV_data_2.to_csv(f"{sensor_id}_full_IV_data.csv", index=False)
+       
+    sensor_id = "D420144"
+    datetime = time.strftime("%Y-%m-%d_%H-%M-%S")
+    source_measure_delay = 10
+    NPLC = 1
+    averaging_count = 10
+    num_ramp_cycles = 1
+    suffix = "LTAB_Annealing_1"
+    save_folder = Path(r"C:\Code\Pockels-Gen2-Control\TEST_DATA\I-V data")
+    save_folder.mkdir(parents=True, exist_ok=True)
+    file_name = f"{sensor_id}_{datetime}_{suffix}"
 
-    #%%
-    # Initialize the measurement settings
-    # keithley.initialize_instrument_settings(current_limit=10e-9, 
-    #                                         current_range=10e-9, 
-    #                                         auto_range=False,
-    #                                         NPLC=1,
-    #                                         auto_zero=True,
-    #                                         source_readback=True,
-    #                                         source_delay=0.5,
-    #                                         )
+    # voltages_cycle = ktly.voltages_neg_to_pos(max_voltage=1100, 
+    #                                     data_points_per_side=10, 
+    #                                     higher_voltages_step=100, 
+    #                                     near_zero=0.1)
+
+    voltages_cycle = ktly.voltages_zero_to_neg(max_voltage=1100, 
+                                         data_points_per_side=10, 
+                                         higher_voltages_step=100, 
+                                         near_zero=0.1)
+    voltages = []
+    for _ in range(num_ramp_cycles):
+        voltages.extend(voltages_cycle)
+    voltages = np.array(voltages)
+
+    np.set_printoptions(suppress=True) # suppress scientific notation
+    print(f"Voltages: \n{voltages}")
+    print(f"Number of voltages: {len(voltages)}")
+    input_response = input("Press N to stop program. Press Enter to continue: ")
+    if input_response.lower() == "n":
+        raise KeyboardInterrupt("User stopped program")
+
+    try:
+        IV_data = ktly.advanced_IV_routine(voltages, 
+                                        source_measure_delay=source_measure_delay,
+                                        NPLC=NPLC,
+                                        averaging_count=averaging_count)
+    except Exception as e:
+        print(f"Error: {e}")
+        ktly.disable_output()
+        ktly.disconnect()
+        raise e
     
-    # voltages = np.arange(-20, -120, -10)
-    # keithley.ramp_voltage(0, step_size=10, step_delay=0.1)
-    # keithley.basic_IV_measurement(voltages)
-    # buffer_columns = [
-    #     BufferElements.TSTAMP,
-    #     BufferElements.SECONDS,
-    #     BufferElements.FRACTIONAL,
-    #     BufferElements.RELATIVE,
-    #     BufferElements.STATUS,
-    #     BufferElements.READING,
-    #     BufferElements.UNIT,
-    #     BufferElements.SOURCE,
-    #     BufferElements.SOURUNIT,
-    #     ]
-    # buffer_data = keithley.get_buffer_dataframe(buffer_columns, buffer_name="defbuffer1")
-    # print(buffer_data)
-
-    # print("Disabling output")
-    # keithley.disable_output()
-    # print("Disconnecting")
-    # keithley.disconnect()
-
-
-
-    # full_buffer_data.to_csv("D419983_Full_Sensor_IV_b.csv", index=False)
+    try:
+        IV_save_path = save_folder / f"IV_data_{file_name}.csv"
+        IV_data.to_csv(str(IV_save_path), index=False)
+    except Exception as e:
+        print(f"Error: {e}")
+        ktly.disable_output()
+        ktly.disconnect()
+        raise e
     
-    # # voltages = voltages_dual_direction(min_voltage=-200, max_voltage=200, data_points=50)
-    # voltages = np.arange(-20, -120, -20)
-    # print(voltages)
-    # input_response = input("*** Check voltages, press enter to continue: ***")
-    # points = 1
-    # duration = 2
-    # delay = 0.1
-    # buffer_name = "defbuffer1"
-    # full_buffer_data = pd.DataFrame()
-    # # keithley.ramp_voltage(voltages[0], step_size=10, step_delay=0.1)
-    # for i, voltage in enumerate(voltages):
-    #     print(f"--- Step {i+1}/{len(voltages)} ---")
-    #     print(f"Ramping to {voltage} V")
-    #     keithley.write(f":TRIG:LOAD 'SimpleLoop', {points}, {delay}")
-    #     # keithley.write(f":TRIG:LOAD 'DurationLoop', {duration}, {delay}")
-    #     print(type(voltage))
-    #     keithley.set_voltage(voltage, range=1000)
-    #     # keithley.write(":SOUR:VOLT:RANG:AUTO ON")
-    #     # keithley.write(f":SOUR:VOLT {voltage}")
-    #     # keithley.write(":OUTP ON")
-    #     time.sleep(2)
-        
+    ktly.disable_output()
+    ktly.disconnect()
 
-    #     print(f"Trigger state: {keithley.query('TRIG:STAT?')}")
-    #     keithley.write(":INITiate")
-    #     print(f"Trigger state: {keithley.query('TRIG:STAT?')}")
-    #     keithley.write(":*WAI")
-    #     print(f"Keithley status: {keithley.query('*OPC?')}")
-    #     print(f"Trigger state: {keithley.query('TRIG:STAT?')}")
+    end_time = time.time()
+    print(f"Total time of measurement: {(end_time - start_time)/60.0} minutes")
 
-    #     # Get the buffer data
-    #     buffer_columns = [
-    #         BufferElements.TSTAMP,
-    #         BufferElements.SECONDS,
-    #         BufferElements.FRACTIONAL,
-    #         BufferElements.RELATIVE,
-    #         BufferElements.STATUS,
-    #         BufferElements.READING, 
-    #         BufferElements.UNIT,
-    #         BufferElements.SOURCE,
-    #         BufferElements.SOURUNIT,
-    #         ]
-    #     buffer_data = keithley.get_buffer_dataframe(buffer_columns, buffer_name)
-    #     buffer_data["SET_VOLTAGE"] = voltage
-    #     print(buffer_data)
-    #     full_buffer_data = pd.concat([full_buffer_data, buffer_data])
-    #     time.sleep(1)
+    settings_json = {
+        "sensor_id": sensor_id,
+        "datetime": datetime,
+        "source_measure_delay": source_measure_delay,
+        "NPLC": NPLC,
+        "averaging_count": averaging_count,
+        "num_ramp_cycles": num_ramp_cycles
+    }
 
-    # keithley.ramp_voltage(0, step_size=10, step_delay=0.1)
-    # print("Disabling output")
-    # keithley.disable_output()
-    # print("Disconnecting")
-    # keithley.disconnect()
+    try:
+        json_save_path = save_folder / f"IV_settings_{file_name}.json"
+        # json_save_path.mkdir(parents=True, exist_ok=True)
+        with open(str(json_save_path), "w") as f:
+            json.dump(settings_json, f)
 
-    # full_buffer_data.to_csv("D419983_Full_Sensor_IV_b.csv", index=False)
+    except Exception as e:
+        print(f"Error: {e}")
+        raise e
+    
+
+
 
 

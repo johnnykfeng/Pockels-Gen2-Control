@@ -1,9 +1,7 @@
 from loguru import logger
 import pyautogui
 import time
-import os
 
-# hey owen, i change the posistions back
 # save_path_position = (-1210, 100)
 save_path_position = (1150, 101)
 # file_name_position = (-1420, 770)
@@ -76,7 +74,7 @@ class CameraAutomation:
             # logger.debug(f"Setting save path to: {save_path}")
             # pyautogui.click(save_path_position, button='left', duration=0.5, interval=self.mouse_speed)
             # pyautogui.hotkey('ctrl', 'a')
-            time.sleep(0.1)
+            time.sleep(2.0)
             pyautogui.typewrite(save_path, interval=self.type_speed)
             pyautogui.press('enter')
             num_characters = len(save_path)
@@ -140,4 +138,7 @@ if __name__ == "__main__":
     # save_path = r"C:\Code\Pockels-Gen2-Control\CAMERA_IMAGES\Test_2025-05-08"
     # cam.save_image_png_typewrite(file_name="test4.png", save_path=save_path)
     display_mouse_position()
+    # cam = CameraAutomation()
+    # cam.record_button_click()
+    # cam.type_recording_file_path("hello")
 

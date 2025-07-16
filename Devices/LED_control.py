@@ -131,7 +131,7 @@ class LEDController:
 if __name__ == "__main__":
     led = LEDController()
     led.print_parameters()
-    for i in range(10, 100, 10):
+    for i in range(100, 800, 100):
         print(f"Last current setpoint: {led.get_current_setpoint():.3f} mA")
         led.set_current(i)  # Set to 50mA
         led.turn_on()

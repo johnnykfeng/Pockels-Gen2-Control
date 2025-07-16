@@ -8,6 +8,7 @@ import numpy as np
 class RotationMount:
     def __init__(self, serial_num, lib_path=r"C:\Program Files\Thorlabs\Kinesis"):
         logger.debug(f"Initializing RotationMount with serial number: {serial_num}")
+        print(f"Initializing RotationMount with serial number: {serial_num}")
         os.add_dll_directory(lib_path)
         self.lib = cdll.LoadLibrary(
             "Thorlabs.MotionControl.KCube.DCServo.dll"
@@ -77,13 +78,12 @@ class RotationMount:
 if __name__ == "__main__":
     rotation_mount = RotationMount("27267316")  # New device serial number
     rotation_mount.open_device()
-    rotation_mount.home_device()
+    # rotation_mount.home_device()
     rotation_mount.setup_conversion()
-    rotation_mount.get_current_position()
-    rotation_mount.move_to_position(130)
-    time.sleep(20)
+    rotation_mount.move_to_position(0)
+    time.sleep(5)
     print(
-        f"End Position: {rotation_mount.get_current_position()}"
+        f"End Position: {rotation_mount.current_position}"
     )  # Print current position
-    rotation_mount.home_device()
-    rotation_mount.close_device()
+    # rotation_mount.home_device()
+    # rotation_mount.close_device()
