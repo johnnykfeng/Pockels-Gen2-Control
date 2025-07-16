@@ -9,26 +9,33 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
+
 
 rotation_mount = RotationMount("27267316")
 camera = CameraAutomation()
 stabilization_time = 5
 # save_path = r"C:\Users\10552\Downloads\pockels_run"
-wafer_id = "New_optical_alignment"
-sensor_id = "D418775"
-date = time.strftime("%Y-%m-%d")
+# wafer_id = "D410886"
+sensor_id = "Training"
+datetime = time.strftime("%Y-%m-%d_%H-%M-%S")
 trial = "A"
-save_path = f"C:\\Users\\10552\\OneDrive - Redlen Technologies\\R&D-UVic Team - Data\\POCKELS\\{wafer_id}_{sensor_id}_{date}_{trial}"
+
+root_folder = Path(r"R:\Pockels_data\NEXT GEN POCKELS\Training\trial_2")
+sub_folder = Path(f"{sensor_id}_{datetime}")
+
+save_path = root_folder / sub_folder
 led = LEDController()
 KEITHLEY_2470_ADDRESS = "USB0::0x05E6::0x2470::04625649::INSTR"
 keithley = Keithley2470Control(KEITHLEY_2470_ADDRESS, terminal="rear")
 
 if __name__ == "__main__":
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    if not os.path.exists(str(save_path)):
+        print(f"Creating directory: {save_path}")
+        os.makedirs(str(save_path))
     # Define the positions
-    cross = 130
-    parallel = 40
+    cross = 45
+    parallel = 135
     rotation_mount.open_device()
     # rotation_mount.home_device()
     rotation_mount.setup_conversion()
@@ -38,15 +45,18 @@ if __name__ == "__main__":
     led.turn_off()
 
     rotation_mount.move_to_position(parallel)
-    camera.save_image_png_typewrite(file_name="calib_parallel_off.png", save_path=save_path)
+    print("Waiting for 5 seconds for parallel position")
+    time.sleep(5)
+    camera.save_image_png_typewrite(file_name="calib_parallel_off.png", 
+                                    save_path=str(save_path))
     countdown_timer(3)
 
     led.turn_on()
-    camera.save_image_png_typewrite(file_name="calib_parallel_on.png", save_path=None)
+    camera.save_image_png_typewrite(file_name="calib_parallel_on.png")
     countdown_timer(3)
 
     rotation_mount.move_to_position(cross)
-    camera.save_image_png_typewrite(file_name="calib_cross_on.png", save_path=None)
+    camera.save_image_png_typewrite(file_name="calib_cross_on.png")
     countdown_timer(3)
 
     # == START MEASUREMENT WITH HIGH VOLTAGE BIAS == #
@@ -69,10 +79,10 @@ if __name__ == "__main__":
         current_readings.append(keithley.query(":READ?"))
         camera.save_image_png_typewrite(file_name=f"cross_{abs(voltage)}V_xray_0mA.png", 
                               save_path=None)
-        rotation_mount.move_to_position(parallel)
-        camera.save_image_png_typewrite(file_name=f"parallel_{abs(voltage)}V_xray_0mA.png", 
-                              save_path=None)
-        rotation_mount.move_to_position(cross)
+        # rotation_mount.move_to_position(parallel)
+        # camera.save_image_png_typewrite(file_name=f"parallel_{abs(voltage)}V_xray_0mA.png", 
+        #                       save_path=None)
+        # rotation_mount.move_to_position(cross)
         countdown_timer(3)
     
     keithley.ramp_voltage(0, step_size=50, step_delay=1) # ramp down to 0V
