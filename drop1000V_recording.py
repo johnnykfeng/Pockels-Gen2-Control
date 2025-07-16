@@ -54,7 +54,7 @@ ktly.ramp_voltage(target_voltage, 10, 0.5)
 print("0.1 Done ramping voltage")
 sleep(5)
 
-for temperature in [10, 20, 30, 40, 50, 60, 70, 80]:
+for temperature in [25, 40]:
     TC.set_temperature(temperature=temperature, wait_time=180)
     sleep(1.0)
     routine_drop_voltage_record(temperature=temperature, 
